@@ -5,43 +5,65 @@ using System.Text;
 
 namespace mythBloomFilter
 {
-    public class BloomFilter
+    public class CountBloomFilter
     {
-        private byte[] _bytes;
-        public BloomFilter(int maxnum)
+        private int[] _bytes;
+        private int _k;
+        public CountBloomFilter(int m, int k)
         {
-            _bytes = new byte[maxnum];
+            _bytes = new int[m];
+            _k = k;
         }
-        public void Add(string url)
-        {
-
-        }
-        int RSHash(string str)
+        int RSHash(String str)
         {
             int b = 378551;
             int a = 63689;
             int hash = 0;
-            int i = 0;
 
-            for (i = 0; i < str.Length; i++)
+            for (int i = 0; i < str.Length; i++)
             {
                 hash = hash * a + str[i];
                 a = a * b;
             }
-
-            return hash % _bytes.Length;
+            return (hash & 0x7FFFFFFF);
         }
-        int JSHash(string str)
+        public void Add(string url)
         {
-            int hash = 1315423911;
-            int i = 0;
-
-            for (i = 0; i < str.Length; i++)
+            var hash = RSHash(url);
+            Random rand = new Random(hash);
+            for (int i = 0; i < _k; i++)
             {
-                hash ^= ((hash << 5) + str[i] + (hash >> 2));
+                _bytes[rand.Next() % _bytes.Length]++;
             }
+        }
+        public void Del(string url)
+        {
+            if (Contains(url))
+            {
+                var hash = RSHash(url);
+                Random rand = new Random(hash);
+                for (int i = 0; i < _k; i++)
+                {
+                    var tmp = _bytes[rand.Next() % _bytes.Length] - 1;
+                    if (tmp < 0)
+                        tmp = 0;
+                    _bytes[rand.Next() % _bytes.Length] = tmp;
+                }
 
-            return hash % _bytes.Length;
+            }
+        }
+        public bool Contains(string url)
+        {
+            var hash = RSHash(url);
+            Random rand = new Random(hash);
+            for (int i = 0; i < _k; i++)
+            {
+                if (_bytes[rand.Next() % _bytes.Length] == 0)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }
